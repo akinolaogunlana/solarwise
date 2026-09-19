@@ -1,0 +1,66 @@
+[
+  {
+    "slug": "refrigerator",
+    "name": "Refrigerator",
+    "wattsTypical": 150,
+    "wattsStarting": 1200,
+    "hoursPerDayTypical": 24,
+    "isEstimated": true
+  },
+  {
+    "slug": "chest-freezer",
+    "name": "Chest Freezer",
+    "wattsTypical": 200,
+    "wattsStarting": 1400,
+    "hoursPerDayTypical": 24,
+    "isEstimated": true
+  },
+  {
+    "slug": "window-air-conditioner",
+    "name": "Window Air Conditioner",
+    "wattsTypical": 1000,
+    "wattsStarting": 3000,
+    "hoursPerDayTypical": 8,
+    "isEstimated": true
+  },
+  {
+    "slug": "television",
+    "name": "Television (LED, 40-55in)",
+    "wattsTypical": 100,
+    "wattsStarting": 100,
+    "hoursPerDayTypical": 5,
+    "isEstimated": true
+  },
+  {
+    "slug": "box-fan",
+    "name": "Box Fan",
+    "wattsTypical": 60,
+    "wattsStarting": 60,
+    "hoursPerDayTypical": 8,
+    "isEstimated": true
+  },
+  {
+    "slug": "washing-machine",
+    "name": "Washing Machine",
+    "wattsTypical": 500,
+    "wattsStarting": 2000,
+    "hoursPerDayTypical": 1,
+    "isEstimated": true
+  },
+  {
+    "slug": "microwave",
+    "name": "Microwave",
+    "wattsTypical": 1000,
+    "wattsStarting": 1000,
+    "hoursPerDayTypical": 0.5,
+    "isEstimated": true
+  },
+  {
+    "slug": "wifi-router",
+    "name": "Wi-Fi Router",
+    "wattsTypical": 10,
+    "wattsStarting": 10,
+    "hoursPerDayTypical": 24,
+    "isEstimated": true
+  }
+]

@@ -1,0 +1,47 @@
+[
+  {
+    "voltage": 12,
+    "capacityAh": 100,
+    "chemistry": "LiFePO4"
+  },
+  {
+    "voltage": 12,
+    "capacityAh": 200,
+    "chemistry": "LiFePO4"
+  },
+  {
+    "voltage": 12,
+    "capacityAh": 300,
+    "chemistry": "LiFePO4"
+  },
+  {
+    "voltage": 24,
+    "capacityAh": 100,
+    "chemistry": "LiFePO4"
+  },
+  {
+    "voltage": 24,
+    "capacityAh": 200,
+    "chemistry": "LiFePO4"
+  },
+  {
+    "voltage": 24,
+    "capacityAh": 300,
+    "chemistry": "LiFePO4"
+  },
+  {
+    "voltage": 48,
+    "capacityAh": 100,
+    "chemistry": "LiFePO4"
+  },
+  {
+    "voltage": 48,
+    "capacityAh": 200,
+    "chemistry": "LiFePO4"
+  },
+  {
+    "voltage": 48,
+    "capacityAh": 300,
+    "chemistry": "LiFePO4"
+  }
+]

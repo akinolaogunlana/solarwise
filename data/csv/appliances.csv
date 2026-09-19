@@ -1,0 +1,9 @@
+slug,name,wattsTypical,wattsStarting,hoursPerDayTypical,isEstimated
+refrigerator,Refrigerator,150,1200,24,true
+chest-freezer,Chest Freezer,200,1400,24,true
+window-air-conditioner,Window Air Conditioner,1000,3000,8,true
+television,"Television (LED, 40-55in)",100,100,5,true
+box-fan,Box Fan,60,60,8,true
+washing-machine,Washing Machine,500,2000,1,true
+microwave,Microwave,1000,1000,0.5,true
+wifi-router,Wi-Fi Router,10,10,24,true
