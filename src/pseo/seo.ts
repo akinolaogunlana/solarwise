@@ -7,6 +7,7 @@ export const SITE_URL = 'https://example.com'; // CHANGE ME before launch, no tr
  * page subject — same fix that was needed on Convertly's fuel-economy pages.
  */
 export function buildTitle(base: string): string {
+  if (base.includes(SITE_NAME)) return base; // already has the site name - never append it twice
   const withSuffix = `${base} — ${SITE_NAME}`;
   return withSuffix.length <= 60 ? withSuffix : base;
 }
