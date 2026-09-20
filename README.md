@@ -127,9 +127,16 @@ meters) rather than decoration for its own sake.
 
 ## Known limitations
 
-- Only 20 of 51 US states have real location data (peak sun hours + electricity
-  rate), each independently sourced and dated — see `data/locations.json`.
-  Expanding further needs either a real NREL API key or additional secondary-source
-  research; nothing here is fabricated.
-- Not deployed. This exists as generated `dist/` output only.
-- No database, admin dashboard, or CSV import pipeline — data is hand-authored JSON.
+- **51 of 51 US states + DC now covered** — expanded from an initial 20-state
+  set using the same consistent NREL PVWatts v8 methodology (peak sun hours)
+  and EIA 2024 State Electricity Profile (rates) for every entry. Both
+  datasets independently verified against their live sources, not assumed
+  from memory.
+- Not deployed. This exists as generated `dist/` output only (though
+  `vercel.json` + `.github/workflows/ci.yml` mean deploying is now a
+  straightforward "connect the repo" step).
+- No database, admin dashboard, or CSV import UI — data is CSV/JSON, imported
+  via a command-line script, not a web interface.
+- US-only. International expansion would need equivalent primary sources
+  for each country (Global Solar Atlas for irradiance; each country's own
+  energy regulator for rates) — not yet researched.

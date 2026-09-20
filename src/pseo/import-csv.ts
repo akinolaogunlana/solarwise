@@ -117,7 +117,7 @@ function importAppliances(): ImportResult<{ slug: string; name: string; wattsTyp
 }
 
 function importLocations(): ImportResult<{
-  slug: string; name: string; peakSunHours: number; sunSource: string; sunSourceUrl: string; sunCollectedAt: string;
+  slug: string; name: string; nameShort?: string; peakSunHours: number; sunSource: string; sunSourceUrl: string; sunCollectedAt: string;
   electricityRateCentsPerKwh: number; rateSource: string; rateSourceUrl: string; rateCollectedAt: string;
 }> {
   const { data, parseErrors } = parseCsv('locations.csv');
@@ -127,6 +127,7 @@ function importLocations(): ImportResult<{
     const rowLabel = `locations.csv row ${i + 2}`;
     const slug = requireString(row, 'slug', rowLabel, errors);
     const name = requireString(row, 'name', rowLabel, errors);
+    const nameShort = (row.nameShort ?? '').trim() || undefined; // optional - falls back to `name` in titles
     const peakSunHours = requireNumber(row, 'peakSunHours', rowLabel, errors);
     const sunSource = requireString(row, 'sunSource', rowLabel, errors);
     const sunSourceUrl = requireString(row, 'sunSourceUrl', rowLabel, errors);
@@ -141,7 +142,7 @@ function importLocations(): ImportResult<{
     // must not import at all, even if the numbers look plausible.
     if (sunSourceUrl && !sunSourceUrl.startsWith('http')) errors.push(`${rowLabel}: sunSourceUrl doesn't look like a real URL: "${sunSourceUrl}"`);
     if (rateSourceUrl && !rateSourceUrl.startsWith('http')) errors.push(`${rowLabel}: rateSourceUrl doesn't look like a real URL: "${rateSourceUrl}"`);
-    return { slug, name, peakSunHours, sunSource, sunSourceUrl, sunCollectedAt, electricityRateCentsPerKwh, rateSource, rateSourceUrl, rateCollectedAt };
+    return { slug, name, nameShort, peakSunHours, sunSource, sunSourceUrl, sunCollectedAt, electricityRateCentsPerKwh, rateSource, rateSourceUrl, rateCollectedAt };
   });
   return { rows, errors };
 }

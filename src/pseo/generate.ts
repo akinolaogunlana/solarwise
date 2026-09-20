@@ -51,6 +51,7 @@ interface Appliance {
 interface Location {
   slug: string;
   name: string;
+  nameShort?: string; // used only in <title> tags where length is tight; falls back to name
   peakSunHours: number;
   sunSource: string;
   sunSourceUrl: string;
@@ -59,6 +60,10 @@ interface Location {
   rateSource: string;
   rateSourceUrl: string;
   rateCollectedAt: string;
+}
+
+function titleName(loc: Location): string {
+  return loc.nameShort || loc.name;
 }
 
 const batteries: Battery[] = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/batteries.json'), 'utf8'));
@@ -435,17 +440,45 @@ ${pageFoot()}`;
 
 // ---------- Hub pages ----------
 // ---------- Panel output AT a real location (Template F) ----------
+// Real, cited national averages used to select genuinely different sentence
+// structures below - not random variation, tied to an actual data comparison.
+// US_AVG_PSH: TheGreenWatt, "the U.S. average is 4.98 PSH/day" (same source as location data).
+// US_AVG_RATE_CENTS: EIA State Electricity Profile 2024, "U.S. Total 12.94" cents/kWh.
+const US_AVG_PSH = 4.98;
+const US_AVG_RATE_CENTS = 12.94;
+
+function panelLocationHowTo(loc: Location, wattage: number, dailyWh: number): string {
+  const psh = loc.peakSunHours;
+  const calc = `${wattage}W × ${psh} × 0.86 (accounting for 14% system loss) = ${dailyWh.toFixed(0)} Wh/day`;
+  if (psh > US_AVG_PSH + 0.3) {
+    return `${loc.name} sits above the U.S. average of ${US_AVG_PSH} peak sun hours/day, averaging ${psh} (${loc.sunSource}). Multiplying that out: ${calc}.`;
+  } else if (psh < US_AVG_PSH - 0.3) {
+    return `${loc.name} averages ${psh} peak sun hours per day, somewhat below the U.S. average of ${US_AVG_PSH} (${loc.sunSource}). Even so, the math works the same way: ${calc}.`;
+  }
+  return `At ${psh} peak sun hours/day, ${loc.name} is close to the U.S. average of ${US_AVG_PSH} (${loc.sunSource}). Working through it: ${calc}.`;
+}
+
+function panelLocationHowMany(loc: Location, wattage: number, dailyKwh: number, annualKwh: number): string {
+  const disclaimer = `treat this as a state-level estimate, not an address-level one — actual output can vary by coastal vs. inland position and elevation within ${loc.name}`;
+  if (loc.peakSunHours > US_AVG_PSH + 0.3) {
+    return `Thanks to ${loc.name}'s above-average sun exposure, a ${wattage}W panel there produces roughly ${dailyKwh.toFixed(2)} kWh/day, or about ${annualKwh.toFixed(0)} kWh over a full year. As always, ${disclaimer}.`;
+  } else if (loc.peakSunHours < US_AVG_PSH - 0.3) {
+    return `A ${wattage}W panel in ${loc.name} produces about ${dailyKwh.toFixed(2)} kWh/day (${annualKwh.toFixed(0)} kWh/year) — lower than sunnier states, reflecting ${loc.name}'s below-average sun hours. As always, ${disclaimer}.`;
+  }
+  return `A ${wattage}W panel in ${loc.name} produces approximately ${dailyKwh.toFixed(2)} kWh/day and ${annualKwh.toFixed(0)} kWh/year, in line with the national average. As always, ${disclaimer}.`;
+}
+
 function buildPanelLocationPage(panel: { wattage: number }, loc: Location) {
   const { wattage } = panel;
   const url = `/solar-panel/${wattage}w/output/${loc.slug}/`;
   const canonical = `${SITE_URL}${url}`;
-  const title = buildTitle(`${wattage}W Solar Panel Output in ${loc.name}`);
+  const title = buildTitle(`${wattage}W Solar Panel Output in ${titleName(loc)}`);
   const result = calculateSolarPanelOutput({ wattage, peakSunHours: loc.peakSunHours });
   const dailyKwh = result.dailyOutputWh / 1000;
   const desc = `A ${wattage}W solar panel produces about ${dailyKwh.toFixed(2)} kWh/day in ${loc.name}, based on ${loc.name}'s real ${loc.peakSunHours} peak sun hour average.`;
 
-  const howToAnswer = `${loc.name} averages ${loc.peakSunHours} peak sun hours/day (${loc.sunSource}). Daily output = ${wattage}W × ${loc.peakSunHours} × 0.86 (14% system loss) = ${result.dailyOutputWh.toFixed(0)} Wh/day.`;
-  const howManyAnswer = `In ${loc.name}, a ${wattage}W panel produces approximately ${dailyKwh.toFixed(2)} kWh/day and ${(result.annualOutputWh / 1000).toFixed(0)} kWh/year on average — actual output varies by specific address within the state (coastal vs. inland, elevation), so treat this as a state-level estimate, not an address-level one.`;
+  const howToAnswer = panelLocationHowTo(loc, wattage, result.dailyOutputWh);
+  const howManyAnswer = panelLocationHowMany(loc, wattage, dailyKwh, result.annualOutputWh / 1000);
 
   const otherWattages = panels.filter((p: SolarPanel) => p.wattage !== wattage).slice(0, 4)
     .map((p: SolarPanel) => `<a href="/solar-panel/${p.wattage}w/output/${loc.slug}/">${p.wattage}W in ${loc.name}</a>`).join('\n');
@@ -503,19 +536,40 @@ ${pageFoot()}`;
 
 // ---------- Location hub (Template G) ----------
 // ---------- Appliance cost AT a real location (Template D extension) ----------
+function applianceLocationHowTo(loc: Location, name: string, wattsTypical: number, hoursPerDayTypical: number, dailyKwh: number, rate: number, dailyCost: number): string {
+  const nameL = name.toLowerCase();
+  const calc = `${dailyKwh.toFixed(2)} kWh/day × $${rate.toFixed(4)} = $${dailyCost.toFixed(2)}/day`;
+  if (loc.electricityRateCentsPerKwh > US_AVG_RATE_CENTS + 1) {
+    return `${loc.name} pays ${loc.electricityRateCentsPerKwh}¢/kWh (${loc.rateSource}), above the U.S. average of ${US_AVG_RATE_CENTS}¢. A ${nameL} at ${wattsTypical}W for ${hoursPerDayTypical}h/day works out to ${calc}.`;
+  } else if (loc.electricityRateCentsPerKwh < US_AVG_RATE_CENTS - 1) {
+    return `At ${loc.electricityRateCentsPerKwh}¢/kWh (${loc.rateSource}), ${loc.name}'s rate runs below the U.S. average of ${US_AVG_RATE_CENTS}¢. Running a ${nameL} at ${wattsTypical}W for ${hoursPerDayTypical}h/day: ${calc}.`;
+  }
+  return `${loc.name}'s rate of ${loc.electricityRateCentsPerKwh}¢/kWh (${loc.rateSource}) is close to the U.S. average. For a ${nameL} at ${wattsTypical}W, ${hoursPerDayTypical}h/day: ${calc}.`;
+}
+
+function applianceLocationHowMany(loc: Location, name: string, dailyCost: number, monthlyCost: number): string {
+  const nameL = name.toLowerCase();
+  if (loc.electricityRateCentsPerKwh > US_AVG_RATE_CENTS + 1) {
+    return `Because ${loc.name}'s electricity costs more than the national average, running a ${nameL} there costs about $${dailyCost.toFixed(2)}/day, or $${monthlyCost.toFixed(2)}/month.`;
+  } else if (loc.electricityRateCentsPerKwh < US_AVG_RATE_CENTS - 1) {
+    return `${loc.name}'s below-average electricity rate keeps this cheap: about $${dailyCost.toFixed(2)}/day, or $${monthlyCost.toFixed(2)}/month, to run a ${nameL} there.`;
+  }
+  return `Running a ${nameL} in ${loc.name} costs approximately $${dailyCost.toFixed(2)}/day or $${monthlyCost.toFixed(2)}/month, using the real local rate.`;
+}
+
 function buildApplianceLocationPage(appliance: Appliance, loc: Location) {
   const { slug, name, wattsTypical, hoursPerDayTypical, isEstimated } = appliance;
   const url = `/appliance/${slug}/electricity-cost/${loc.slug}/`;
   const canonical = `${SITE_URL}${url}`;
-  const title = buildTitle(`${name} Electricity Cost in ${loc.name}`);
+  const title = buildTitle(`${name} Electricity Cost in ${titleName(loc)}`);
   const rate = loc.electricityRateCentsPerKwh / 100;
   const dailyKwh = calculateApplianceConsumption({ wattsTypical, hoursPerDay: hoursPerDayTypical });
   const dailyCost = calculateElectricityCost({ kwhPerDay: dailyKwh, ratePerKwh: rate, days: 1 });
   const monthlyCost = calculateElectricityCost({ kwhPerDay: dailyKwh, ratePerKwh: rate, days: 30 });
   const desc = `A ${name.toLowerCase()} costs about $${dailyCost.toFixed(2)}/day to run in ${loc.name}, using ${loc.name}'s real ${loc.electricityRateCentsPerKwh}¢/kWh rate.`;
 
-  const howToAnswer = `${loc.name}'s average residential rate is ${loc.electricityRateCentsPerKwh}¢/kWh (${loc.rateSource}). A ${name.toLowerCase()} using ${wattsTypical}W for ${hoursPerDayTypical}h/day consumes ${dailyKwh.toFixed(2)} kWh/day, costing ${dailyKwh.toFixed(2)} × $${rate.toFixed(4)} = $${dailyCost.toFixed(2)}/day.`;
-  const howManyAnswer = `Running a ${name.toLowerCase()} in ${loc.name} costs approximately $${dailyCost.toFixed(2)}/day or $${monthlyCost.toFixed(2)}/month, using ${loc.name}'s real average electricity rate.`;
+  const howToAnswer = applianceLocationHowTo(loc, name, wattsTypical, hoursPerDayTypical, dailyKwh, rate, dailyCost);
+  const howManyAnswer = applianceLocationHowMany(loc, name, dailyCost, monthlyCost);
 
   const otherAppliances = appliances.filter(a => a.slug !== slug).slice(0, 4)
     .map(a => `<a href="/appliance/${a.slug}/electricity-cost/${loc.slug}/">${a.name} in ${loc.name}</a>`).join('\n');
@@ -582,7 +636,7 @@ ${pageFoot()}`;
 function buildLocationHub(loc: Location) {
   const url = `/solar/${loc.slug}/`;
   const canonical = `${SITE_URL}${url}`;
-  const title = buildTitle(`Solar Power in ${loc.name}: Sun Hours, Rates & Output`);
+  const title = buildTitle(`Solar Power in ${titleName(loc)}: Sun Hours, Rates & Output`);
   const rate = loc.electricityRateCentsPerKwh / 100;
   const desc = `${loc.name} averages ${loc.peakSunHours} peak sun hours/day and pays ${loc.electricityRateCentsPerKwh}¢/kWh for electricity. See real solar output and cost estimates for ${loc.name}.`;
 
@@ -922,7 +976,7 @@ function buildEvChargingCostCalc(): void {
   });
 }
 
-function buildHub(urlPath: string, title: string, desc: string, items: Array<{ name: string; href: string }>) {
+function buildHub(urlPath: string, title: string, desc: string, items: Array<{ name: string; href: string }>, extraContentHtml: string = '') {
   const canonical = `${SITE_URL}${urlPath}`;
   const links = items.map(i => `<a href="${i.href}">${i.name}</a>`).join('\n');
   const jsonLd = [
@@ -934,6 +988,7 @@ ${header(`<a href="/">Home</a> / ${title}`)}
 <main class="wrap">
   <h1>${title}</h1>
   <p class="subhead">${desc}</p>
+  ${extraContentHtml}
   ${adSlot('hub page banner')}
   <div class="pill-list">${links}</div>
 </main>
@@ -975,6 +1030,8 @@ ${header('')}
     <a href="/battery/"><div class="cat-name">Battery Runtime</div><div class="cat-count">${batteries.length} configurations</div></a>
     <a href="/solar-panel/"><div class="cat-name">Solar Panel Output</div><div class="cat-count">${panels.length} wattages</div></a>
     <a href="/appliance/"><div class="cat-name">Appliance Electricity Cost</div><div class="cat-count">${appliances.length} appliances</div></a>
+    <a href="/solar/"><div class="cat-name">Solar Power By State</div><div class="cat-count">${locations.length} states + DC</div></a>
+    <a href="/calculators/"><div class="cat-name">All Calculators</div><div class="cat-count">${standaloneCalcList.length} standalone tools</div></a>
   </div>
 </main>
 ${footer()}
@@ -1065,19 +1122,38 @@ function main() {
   build404();
 
   for (const b of batteries) buildBatteryPage(b);
+  const batteryTableRows = batteries.map((b: Battery) => {
+    const r = calculateBatteryRuntime({ batteryVoltage: b.voltage, batteryAh: b.capacityAh, loadWatts: 100 });
+    return `<tr><td><a href="/battery/${b.voltage}v-${b.capacityAh}ah/">${b.voltage}V ${b.capacityAh}Ah</a></td><td>${b.chemistry}</td><td>${r.hours.toFixed(1)} hours</td></tr>`;
+  }).join('\n');
   buildHub('/battery/', 'Battery Runtime Calculators',
     'Pick a battery configuration to see runtime at common loads, or use the calculator for your exact setup.',
-    batteries.map((b: Battery) => ({ name: `${b.voltage}V ${b.capacityAh}Ah`, href: `/battery/${b.voltage}v-${b.capacityAh}ah/` })));
+    batteries.map((b: Battery) => ({ name: `${b.voltage}V ${b.capacityAh}Ah`, href: `/battery/${b.voltage}v-${b.capacityAh}ah/` })),
+    `<p>Runtime scales with capacity: a 12V 300Ah bank lasts three times as long as a 12V 100Ah bank under the same load, since capacity (Ah) is the direct measure of stored energy. Doubling system voltage at the same Ah rating (say, 12V to 24V) also roughly doubles usable energy, since watt-hours = volts × amp-hours. The table below compares all ${batteries.length} configurations at a fixed 100W reference load, using each one's default 85% efficiency assumption, so you can see the relative differences at a glance before picking one to explore further.</p>
+    <table class="unit-table"><tr><th>Configuration</th><th>Chemistry</th><th>Runtime at 100W</th></tr>${batteryTableRows}</table>`);
 
   for (const p of panels) buildPanelPage(p);
+  const panelTableRows = panels.map((p: SolarPanel) => {
+    const r = calculateSolarPanelOutput({ wattage: p.wattage, peakSunHours: 5 });
+    return `<tr><td><a href="/solar-panel/${p.wattage}w/">${p.wattage}W</a></td><td>${(r.dailyOutputWh / 1000).toFixed(2)} kWh/day</td><td>${(r.annualOutputWh / 1000).toFixed(0)} kWh/year</td></tr>`;
+  }).join('\n');
   buildHub('/solar-panel/', 'Solar Panel Output Calculators',
     'Pick a panel wattage to see output under different sun conditions, or use the calculator for your exact location.',
-    panels.map((p: SolarPanel) => ({ name: `${p.wattage}W`, href: `/solar-panel/${p.wattage}w/` })));
+    panels.map((p: SolarPanel) => ({ name: `${p.wattage}W`, href: `/solar-panel/${p.wattage}w/` })),
+    `<p>Output scales roughly linearly with wattage at a given location — an 800W array produces about twice what a 400W array does under identical sun conditions, since both are driven by the same peak-sun-hour and system-loss assumptions. The real variable that matters more than wattage alone is location: the same 400W panel produces about 1.09 kWh/day in Alaska (the lowest-sun state in this dataset) versus about 2.25 kWh/day in Arizona (the highest) — see the <a href="/solar/">by-state pages</a> for real numbers instead of the generic 5-peak-sun-hour scenario used below.</p>
+    <table class="unit-table"><tr><th>Wattage</th><th>Daily (5 PSH avg.)</th><th>Annual</th></tr>${panelTableRows}</table>`);
 
   for (const a of appliances) buildAppliancePage(a);
+  const applianceTableRows = appliances.map((a: Appliance) => {
+    const dailyKwh = calculateApplianceConsumption({ wattsTypical: a.wattsTypical, hoursPerDay: a.hoursPerDayTypical });
+    const cost = calculateElectricityCost({ kwhPerDay: dailyKwh, ratePerKwh: 0.15, days: 1 });
+    return `<tr><td><a href="/appliance/${a.slug}/electricity-cost/">${a.name}</a></td><td>${dailyKwh.toFixed(2)} kWh/day</td><td>$${cost.toFixed(2)}/day at $0.15/kWh</td></tr>`;
+  }).join('\n');
   buildHub('/appliance/', 'Appliance Electricity Cost Calculators',
     'Pick an appliance to estimate its electricity cost, or enter your own wattage and rate.',
-    appliances.map((a: Appliance) => ({ name: a.name, href: `/appliance/${a.slug}/electricity-cost/` })));
+    appliances.map((a: Appliance) => ({ name: a.name, href: `/appliance/${a.slug}/electricity-cost/` })),
+    `<p>Cost depends on three things: wattage, hours of use per day, and your local electricity rate — this site's calculators let you adjust all three. The table below uses each appliance's typical wattage and usage pattern at an illustrative $0.15/kWh rate; your actual cost could be meaningfully different depending on where you live — see the <a href="/solar/">by-state pages</a> for real local rates instead of this generic example.</p>
+    <table class="unit-table"><tr><th>Appliance</th><th>Typical use</th><th>Example cost</th></tr>${applianceTableRows}</table>`);
 
   buildSolarSystemSizeCalc();
   buildPanelCountCalc();
