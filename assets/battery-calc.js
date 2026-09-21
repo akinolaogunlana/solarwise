@@ -1,5 +1,11 @@
 import { calculateBatteryRuntime } from '/assets/calc-engine.js';
 
+function flash(el) {
+  el.classList.remove('pulse');
+  void el.offsetWidth; // restart animation if triggered again quickly
+  el.classList.add('pulse');
+}
+
 document.querySelectorAll('[data-battery-calc]').forEach(function (root) {
   const v = parseFloat(root.dataset.voltage);
   const ah = parseFloat(root.dataset.capacity);
@@ -12,6 +18,7 @@ document.querySelectorAll('[data-battery-calc]').forEach(function (root) {
   const defaultLoad = root.dataset.defaultLoad;
   const defaultDod = root.dataset.defaultDod;
   const defaultEff = root.dataset.defaultEff;
+  let isFirstRun = true;
 
   function run() {
     const load = parseFloat(loadInput.value);
@@ -20,6 +27,7 @@ document.querySelectorAll('[data-battery-calc]').forEach(function (root) {
     if (!load || load <= 0 || isNaN(dod) || isNaN(eff)) {
       hoursOutput.textContent = '—';
       if (whOutput) whOutput.textContent = '—';
+      isFirstRun = false;
       return;
     }
     try {
@@ -29,10 +37,12 @@ document.querySelectorAll('[data-battery-calc]').forEach(function (root) {
       });
       hoursOutput.textContent = result.hours.toFixed(2);
       if (whOutput) whOutput.textContent = result.usableWh.toFixed(0);
+      if (!isFirstRun) { flash(hoursOutput); if (whOutput) flash(whOutput); }
     } catch {
       hoursOutput.textContent = '—';
       if (whOutput) whOutput.textContent = '—';
     }
+    isFirstRun = false;
   }
 
   [loadInput, dodInput, effInput].forEach(el => el.addEventListener('input', run));

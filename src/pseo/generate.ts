@@ -1012,9 +1012,18 @@ ${pageFoot()}`;
   write('404.html', html);
 }
 
+const ICONS: Record<string, string> = {
+  battery: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="17" height="10" rx="1.5"/><path d="M21 10v4"/><path d="M6 10v4M10 10v4"/></svg>`,
+  sun: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>`,
+  plug: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v5M15 2v5M7 7h10v4a5 5 0 0 1-10 0V7Z"/><path d="M12 16v6"/></svg>`,
+  map: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/></svg>`,
+  grid: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`
+};
+
 function buildHome() {
   const canonical = `${SITE_URL}/`;
   const jsonLd = [breadcrumbLd([{ name: 'Home', url: canonical }])];
+  const totalCalcTypes = batteries.length + panels.length + appliances.length + standaloneCalcList.length;
   const html = pageHead({
     title: buildTitle(`${SITE_NAME} — Free solar & energy calculators`),
     description: 'Free calculators for battery runtime, solar panel output, and appliance electricity cost. No signup, no ads blocking the number you came for.',
@@ -1025,13 +1034,18 @@ ${header('')}
 <main class="wrap">
   <h1>Free solar & energy calculators</h1>
   <p class="subhead">Every number is calculated from a documented formula with disclosed assumptions — never fabricated.</p>
+  <div class="stat-strip">
+    <div class="stat"><strong>${locations.length}</strong><span>states + DC covered</span></div>
+    <div class="stat"><strong>${totalCalcTypes}</strong><span>calculator types</span></div>
+    <div class="stat"><strong>$0</strong><span>always, no signup</span></div>
+  </div>
   ${adSlot('homepage banner')}
   <div class="category-grid">
-    <a href="/battery/"><div class="cat-name">Battery Runtime</div><div class="cat-count">${batteries.length} configurations</div></a>
-    <a href="/solar-panel/"><div class="cat-name">Solar Panel Output</div><div class="cat-count">${panels.length} wattages</div></a>
-    <a href="/appliance/"><div class="cat-name">Appliance Electricity Cost</div><div class="cat-count">${appliances.length} appliances</div></a>
-    <a href="/solar/"><div class="cat-name">Solar Power By State</div><div class="cat-count">${locations.length} states + DC</div></a>
-    <a href="/calculators/"><div class="cat-name">All Calculators</div><div class="cat-count">${standaloneCalcList.length} standalone tools</div></a>
+    <a href="/battery/"><span class="cat-icon">${ICONS.battery}</span><div class="cat-name">Battery Runtime</div><div class="cat-count">${batteries.length} configurations</div></a>
+    <a href="/solar-panel/"><span class="cat-icon">${ICONS.sun}</span><div class="cat-name">Solar Panel Output</div><div class="cat-count">${panels.length} wattages</div></a>
+    <a href="/appliance/"><span class="cat-icon">${ICONS.plug}</span><div class="cat-name">Appliance Electricity Cost</div><div class="cat-count">${appliances.length} appliances</div></a>
+    <a href="/solar/"><span class="cat-icon">${ICONS.map}</span><div class="cat-name">Solar Power By State</div><div class="cat-count">${locations.length} states + DC</div></a>
+    <a href="/calculators/"><span class="cat-icon">${ICONS.grid}</span><div class="cat-name">All Calculators</div><div class="cat-count">${standaloneCalcList.length} standalone tools</div></a>
   </div>
 </main>
 ${footer()}

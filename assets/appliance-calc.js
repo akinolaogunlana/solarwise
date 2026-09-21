@@ -1,5 +1,11 @@
 import { calculateApplianceConsumption, calculateElectricityCost } from '/assets/calc-engine.js';
 
+function flash(el) {
+  el.classList.remove('pulse');
+  void el.offsetWidth;
+  el.classList.add('pulse');
+}
+
 document.querySelectorAll('[data-appliance-calc]').forEach(function (root) {
   const wattsInput = root.querySelector('#watts');
   const hoursInput = root.querySelector('#hours');
@@ -10,6 +16,7 @@ document.querySelectorAll('[data-appliance-calc]').forEach(function (root) {
   const defaultWatts = root.dataset.defaultWatts;
   const defaultHours = root.dataset.defaultHours;
   const defaultRate = root.dataset.defaultRate;
+  let isFirstRun = true;
 
   function run() {
     const watts = parseFloat(wattsInput.value);
@@ -18,6 +25,7 @@ document.querySelectorAll('[data-appliance-calc]').forEach(function (root) {
     if (!watts || !hours || isNaN(rate) || watts < 0 || hours < 0 || rate < 0) {
       dailyOutput.textContent = '—';
       if (monthlyOutput) monthlyOutput.textContent = '—';
+      isFirstRun = false;
       return;
     }
     try {
@@ -28,10 +36,12 @@ document.querySelectorAll('[data-appliance-calc]').forEach(function (root) {
         const monthlyCost = calculateElectricityCost({ kwhPerDay: dailyKwh, ratePerKwh: rate, days: 30 });
         monthlyOutput.textContent = '$' + monthlyCost.toFixed(2);
       }
+      if (!isFirstRun) { flash(dailyOutput); if (monthlyOutput) flash(monthlyOutput); }
     } catch {
       dailyOutput.textContent = '—';
       if (monthlyOutput) monthlyOutput.textContent = '—';
     }
+    isFirstRun = false;
   }
 
   [wattsInput, hoursInput, rateInput].forEach(el => el.addEventListener('input', run));

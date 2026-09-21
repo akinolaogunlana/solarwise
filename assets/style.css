@@ -189,6 +189,53 @@ a:focus-visible, button:focus-visible, input:focus-visible {
   outline-offset: 2px;
 }
 
+/* Homepage stat strip - real computed numbers, not decoration */
+.stat-strip {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--paper-line);
+}
+.stat { display: flex; flex-direction: column; }
+.stat strong { font-family: var(--head); font-size: 1.6rem; color: var(--copper); line-height: 1.1; }
+.stat span { font-size: 0.8rem; color: var(--ink-soft); }
+
+/* Category grid icons */
+.cat-icon { display: block; width: 26px; height: 26px; color: var(--copper); margin-bottom: 10px; }
+.cat-icon svg { width: 100%; height: 100%; }
+
+/* Tactile refinement: inputs and buttons get a touch of radius and lift; flat
+   structural elements (panels, tables) stay sharp - the two moods stay distinct */
+.field input, .reset-btn, .search-box input {
+  border-radius: 3px;
+}
+.calc { transition: box-shadow 0.2s ease; }
+.calc:focus-within { box-shadow: 0 0 0 3px var(--gold-soft); }
+
+/* Pulse: brief highlight when a calculator output updates, for tactile feedback */
+@keyframes pulse-value {
+  0% { color: var(--gold); }
+  100% { color: var(--readout-text); }
+}
+.result-line strong.pulse { animation: pulse-value 0.5s ease; }
+
+/* Dark mode - respects system preference */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #14180F;
+    --paper-line: #3A4433;
+    --ink: #EAE7DC;
+    --ink-soft: #A7AD9C;
+    --white: #1D2318;
+    --readout-bg: #0A0F09;
+    --gold-soft: #3D3418;
+  }
+  .cat-icon { color: var(--gold); }
+  .stat strong { color: var(--gold); }
+}
+
 /* Small screens */
 @media (max-width: 560px) {
   .field-row { flex-direction: column; }

@@ -131,7 +131,26 @@ document.querySelectorAll('[data-calc]').forEach(function (root) {
   const handler = handlers[id];
   if (!handler) return;
   const { run, reset } = handler(root);
+
+  // Generic pulse feedback on any [data-output*] element within this root -
+  // works across all 8 calculator types without touching each handler's own logic.
+  function flashOutputs() {
+    root.querySelectorAll('[data-output], [data-output-continuous], [data-output-surge], [data-output-monthly], [data-output-annual], [data-output-payback], [data-output-roi]')
+      .forEach(function (el) {
+        el.classList.remove('pulse');
+        void el.offsetWidth;
+        el.classList.add('pulse');
+      });
+  }
+  let isFirstRun = true;
+  function runWithFeedback() {
+    run();
+    if (!isFirstRun) flashOutputs();
+    isFirstRun = false;
+  }
+  root.querySelectorAll('input').forEach(el => el.addEventListener('input', flashOutputs));
+
   const resetBtn = root.querySelector('[data-role="reset"]');
   if (resetBtn) resetBtn.addEventListener('click', reset);
-  run();
+  runWithFeedback();
 });
