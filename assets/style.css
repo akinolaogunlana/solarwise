@@ -241,3 +241,4 @@ a:focus-visible, button:focus-visible, input:focus-visible {
   .field-row { flex-direction: column; }
   .result-line { flex-direction: column; align-items: flex-start; }
 }
+.rank-fact { font-size: 0.92rem; color: var(--ink); background: var(--white); border-left: 3px solid var(--copper); padding: 8px 12px; margin: 0 0 16px; }

@@ -50,6 +50,24 @@ export function faqLd(pairs: Array<{ question: string; answer: string }>): JsonL
   };
 }
 
+export function websiteLd(): JsonLdObject {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE_NAME,
+    url: SITE_URL
+  };
+}
+
+export function organizationLd(): JsonLdObject {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SITE_NAME,
+    url: SITE_URL
+  };
+}
+
 export function webApplicationLd(name: string, dateModified?: string): JsonLdObject {
   const obj: JsonLdObject = {
     '@context': 'https://schema.org',

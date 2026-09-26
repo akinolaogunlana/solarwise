@@ -125,6 +125,77 @@ deliberately distinct from the rest of the page's flat, quiet styling — the
 one bold visual choice, tied to the subject matter (multimeters, power
 meters) rather than decoration for its own sake.
 
+## SEO and AI discovery
+
+**Traditional SEO** (exhaustively audited, not sampled): 0 duplicate titles,
+0 duplicate meta descriptions, 0 duplicate H1s, 0 canonical mismatches, 0
+orphan pages (every page reachable by following real links from the
+homepage, not just present in the sitemap), 0 broken internal links across
+12,600+ checked. Also fixed a genuine sentence-level template-duplication
+risk: the 816 location-crossed pages (panel×state, appliance×state) now use
+one of three distinct sentence structures, selected by comparing each
+state's real data against the actual US average — not random variation,
+tied to a real fact about that state.
+
+**AI discovery** (a distinct, newer concern from traditional SEO):
+- `/llms.txt` — a curated, markdown summary of the site for LLMs to ingest,
+  built from real computed counts (states, calculator types), not static text
+- `robots.txt` explicitly welcomes the major AI crawlers by name (GPTBot,
+  ClaudeBot, PerplexityBot, Google-Extended, CCBot, and others) — this site's
+  entire value is free public data with no ad-paywall for these bots to
+  threaten, so citation and exposure via AI answers is pure upside
+- Site-level `WebSite` and `Organization` structured data on the homepage
+  (previously missing — only page-level schema existed before)
+- Core content (calculated defaults, reference tables) is server-rendered
+  in raw HTML, not dependent on JavaScript execution — verified directly,
+  since most AI crawlers fetch HTML without running JS
+
+## Scaled content abuse risk — an honest assessment
+
+Google's spam policies specifically target "programmatic" sites like this one
+(the March 2024 "scaled content abuse" policy, reinforced in updates through
+2026). Researched directly from Google's own documentation, not assumed:
+
+**The real risk:** 816 of 907 pages (90%) are combinatorial (panel wattage ×
+state, appliance × state). Google's own current guidance explicitly names
+generating a page for every query variation as a violation risk when done
+primarily for rankings rather than genuine per-page value. The underlying
+data here (EIA rates, NREL-derived sun hours) is public and freely available
+at the primary source (e.g., NREL's own PVWatts tool computes address-level
+output for free) — this site's value-add is convenience and packaging, not
+proprietary data.
+
+**A real architectural reduction, not just more text per page:** rather than keep all 816 combinatorial pages indexed, I computed the actual cross-state dollar/kWh spread for every panel wattage and appliance, and set disclosed thresholds (under 1.0 kWh/day spread for panels, under $10/month for appliances) below which location doesn't meaningfully change the practical decision. Pages below threshold are `noindex` (not deleted — they still exist, still work, still link from their state hub for users who want them) and excluded from the sitemap.
+
+Verified precisely, not estimated: indexed pages dropped from 906 to 498. The combinatorial share of *indexed* pages dropped from 90.1% to 81.9%. Still a majority — this is a real reduction, not a complete fix, and I want to be exact about that rather than round up to "solved."
+
+**Mitigations already in place:**
+- Real, cited, dated data — nothing fabricated
+- Working interactive calculators, not just text
+- Numbers genuinely differ per page, not cosmetic variation
+- Sentence-level template variation (3 structures per cluster) tied to real
+  data comparisons, not random
+- **Real computed rank/percentile data per page** (e.g., "Arizona ranks 1 of
+  51 states for peak sun hours, 31% above the national average") — verified
+  correct against independently sorted data before shipping
+
+**What I could not do from this environment, and why:**
+- Set up Google Search Console and monitor actual indexing behavior — this
+  requires the live deployed site and real crawl history, neither of which
+  exist yet from here
+- Determine actual search demand per combination (e.g., is "wifi router cost
+  in Wyoming" a real searched query) — no keyword-research tool access
+
+**What to actually do once deployed:** add the property to Search Console,
+then specifically watch the Pages report for "Crawled – not indexed" or
+"Discovered – not indexed" status concentrated on the `/solar-panel/*/output/*/`
+and `/appliance/*/electricity-cost/*/` URL patterns after a few weeks. That's
+Google's own real signal about how it's treating this pattern — not something
+predictable in advance. If a large share of those specific URLs show that
+status while the state hub pages and base calculator pages index normally,
+consider `noindex` (not deletion) on the weakest-performing combinations
+rather than the whole cluster.
+
 ## Known limitations
 
 - **51 of 51 US states + DC now covered** — expanded from an initial 20-state

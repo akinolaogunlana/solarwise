@@ -21,7 +21,7 @@ import {
 } from '../calc-engine/index.ts';
 import {
   SITE_NAME, SITE_URL, buildTitle, breadcrumbLd, faqLd, webApplicationLd,
-  itemListLd, pageHead, pageFoot
+  itemListLd, pageHead, pageFoot, websiteLd, organizationLd
 } from './seo.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -76,6 +76,7 @@ const panelUrls: string[] = [];
 const applianceUrls: string[] = [];
 const locationUrls: string[] = [];
 const otherUrls: string[] = [];
+let noindexedCount = 0; // pages that exist as real files but are excluded from the sitemap
 
 // ---------- Validation (fail loudly, never generate silently-broken pages) ----------
 function validateData() {
@@ -458,6 +459,33 @@ function panelLocationHowTo(loc: Location, wattage: number, dailyWh: number): st
   return `At ${psh} peak sun hours/day, ${loc.name} is close to the U.S. average of ${US_AVG_PSH} (${loc.sunSource}). Working through it: ${calc}.`;
 }
 
+// Real computed rankings across all locations - genuine comparative analysis per
+// page, not just a formula with a swapped number. Computed once, reused everywhere.
+function computeRankings(): { sunRank: Map<string, number>; rateRank: Map<string, number> } {
+  const bySun = [...locations].sort((a, b) => b.peakSunHours - a.peakSunHours);
+  const byRate = [...locations].sort((a, b) => b.electricityRateCentsPerKwh - a.electricityRateCentsPerKwh);
+  const sunRank = new Map<string, number>();
+  const rateRank = new Map<string, number>();
+  bySun.forEach((l, i) => sunRank.set(l.slug, i + 1));
+  byRate.forEach((l, i) => rateRank.set(l.slug, i + 1));
+  return { sunRank, rateRank };
+}
+const RANKINGS = computeRankings();
+
+function sunRankFact(loc: Location): string {
+  const rank = RANKINGS.sunRank.get(loc.slug)!;
+  const pctVsAvg = ((loc.peakSunHours - US_AVG_PSH) / US_AVG_PSH) * 100;
+  const direction = pctVsAvg >= 0 ? 'above' : 'below';
+  return `${loc.name} ranks ${rank} of ${locations.length} states + DC for peak sun hours, ${Math.abs(pctVsAvg).toFixed(0)}% ${direction} the national average.`;
+}
+
+function rateRankFact(loc: Location): string {
+  const rank = RANKINGS.rateRank.get(loc.slug)!;
+  const pctVsAvg = ((loc.electricityRateCentsPerKwh - US_AVG_RATE_CENTS) / US_AVG_RATE_CENTS) * 100;
+  const direction = pctVsAvg >= 0 ? 'above' : 'below';
+  return `${loc.name} ranks ${rank} of ${locations.length} states + DC for electricity rate (highest to lowest), ${Math.abs(pctVsAvg).toFixed(0)}% ${direction} the national average.`;
+}
+
 function panelLocationHowMany(loc: Location, wattage: number, dailyKwh: number, annualKwh: number): string {
   const disclaimer = `treat this as a state-level estimate, not an address-level one — actual output can vary by coastal vs. inland position and elevation within ${loc.name}`;
   if (loc.peakSunHours > US_AVG_PSH + 0.3) {
@@ -468,6 +496,24 @@ function panelLocationHowMany(loc: Location, wattage: number, dailyKwh: number, 
   return `A ${wattage}W panel in ${loc.name} produces approximately ${dailyKwh.toFixed(2)} kWh/day and ${annualKwh.toFixed(0)} kWh/year, in line with the national average. As always, ${disclaimer}.`;
 }
 
+// Real, disclosed thresholds for whether location meaningfully changes the practical
+// decision for a given entity. Computed from actual cross-state spread, not guessed.
+// Below threshold: the page still exists and works, but is noindexed (not deleted,
+// not a broken link) since location doesn't add much decision-relevant differentiation.
+const PANEL_SPREAD_THRESHOLD_KWH = 1.0;   // daily kWh spread across all 51 states
+const APPLIANCE_SPREAD_THRESHOLD_USD = 10; // monthly $ spread across all 51 states
+
+function computePanelSpreadKwh(wattage: number): number {
+  const outputs = locations.map(l => calculateSolarPanelOutput({ wattage, peakSunHours: l.peakSunHours }).dailyOutputWh / 1000);
+  return Math.max(...outputs) - Math.min(...outputs);
+}
+
+function computeApplianceSpreadUsd(appliance: Appliance): number {
+  const dailyKwh = calculateApplianceConsumption({ wattsTypical: appliance.wattsTypical, hoursPerDay: appliance.hoursPerDayTypical });
+  const costs = locations.map(l => calculateElectricityCost({ kwhPerDay: dailyKwh, ratePerKwh: l.electricityRateCentsPerKwh / 100, days: 30 }));
+  return Math.max(...costs) - Math.min(...costs);
+}
+
 function buildPanelLocationPage(panel: { wattage: number }, loc: Location) {
   const { wattage } = panel;
   const url = `/solar-panel/${wattage}w/output/${loc.slug}/`;
@@ -476,6 +522,8 @@ function buildPanelLocationPage(panel: { wattage: number }, loc: Location) {
   const result = calculateSolarPanelOutput({ wattage, peakSunHours: loc.peakSunHours });
   const dailyKwh = result.dailyOutputWh / 1000;
   const desc = `A ${wattage}W solar panel produces about ${dailyKwh.toFixed(2)} kWh/day in ${loc.name}, based on ${loc.name}'s real ${loc.peakSunHours} peak sun hour average.`;
+  const spreadKwh = computePanelSpreadKwh(wattage);
+  const shouldNoindex = spreadKwh < PANEL_SPREAD_THRESHOLD_KWH;
 
   const howToAnswer = panelLocationHowTo(loc, wattage, result.dailyOutputWh);
   const howManyAnswer = panelLocationHowMany(loc, wattage, dailyKwh, result.annualOutputWh / 1000);
@@ -494,11 +542,12 @@ function buildPanelLocationPage(panel: { wattage: number }, loc: Location) {
     ])
   ];
 
-  const html = pageHead({ title, description: desc, canonical, jsonLd }) + `
+  const html = pageHead({ title, description: desc, canonical, jsonLd, noindex: shouldNoindex }) + `
 ${header(`<a href="/">Home</a> / <a href="/solar-panel/">Solar Panel Output</a> / ${wattage}W / ${loc.name}`)}
 <main class="wrap">
   <h1>${wattage}W Solar Panel Output in ${loc.name}</h1>
   <p class="subhead">Based on ${loc.name}'s real average of ${loc.peakSunHours} peak sun hours/day — not a generic scenario.</p>
+  <p class="rank-fact">${sunRankFact(loc)}</p>
   <div class="calc" data-panel-calc data-wattage="${wattage}" data-default-hours="${loc.peakSunHours}" data-default-loss="14">
     <div class="field-row">
       <div class="field">
@@ -531,7 +580,7 @@ ${footer()}
 ${pageFoot()}`;
 
   write(`solar-panel/${wattage}w/output/${loc.slug}/index.html`, html);
-  locationUrls.push(canonical);
+  if (!shouldNoindex) locationUrls.push(canonical); else noindexedCount++;
 }
 
 // ---------- Location hub (Template G) ----------
@@ -567,6 +616,8 @@ function buildApplianceLocationPage(appliance: Appliance, loc: Location) {
   const dailyCost = calculateElectricityCost({ kwhPerDay: dailyKwh, ratePerKwh: rate, days: 1 });
   const monthlyCost = calculateElectricityCost({ kwhPerDay: dailyKwh, ratePerKwh: rate, days: 30 });
   const desc = `A ${name.toLowerCase()} costs about $${dailyCost.toFixed(2)}/day to run in ${loc.name}, using ${loc.name}'s real ${loc.electricityRateCentsPerKwh}¢/kWh rate.`;
+  const spreadUsd = computeApplianceSpreadUsd(appliance);
+  const shouldNoindex = spreadUsd < APPLIANCE_SPREAD_THRESHOLD_USD;
 
   const howToAnswer = applianceLocationHowTo(loc, name, wattsTypical, hoursPerDayTypical, dailyKwh, rate, dailyCost);
   const howManyAnswer = applianceLocationHowMany(loc, name, dailyCost, monthlyCost);
@@ -590,11 +641,12 @@ function buildApplianceLocationPage(appliance: Appliance, loc: Location) {
     ])
   ];
 
-  const html = pageHead({ title, description: desc, canonical, jsonLd }) + `
+  const html = pageHead({ title, description: desc, canonical, jsonLd, noindex: shouldNoindex }) + `
 ${header(`<a href="/">Home</a> / <a href="/appliance/">Appliances</a> / <a href="/appliance/${slug}/electricity-cost/">${name}</a> / ${loc.name}`)}
 <main class="wrap">
   <h1>${name} Electricity Cost in ${loc.name}</h1>
   <p class="subhead">Using ${loc.name}'s real average rate of ${loc.electricityRateCentsPerKwh}¢/kWh — not a generic example rate.</p>
+  <p class="rank-fact">${rateRankFact(loc)}</p>
   <div class="calc" data-appliance-calc data-default-watts="${wattsTypical}" data-default-hours="${hoursPerDayTypical}" data-default-rate="${rate}">
     <div class="field-row">
       <div class="field">
@@ -630,7 +682,7 @@ ${footer()}
 ${pageFoot()}`;
 
   write(`appliance/${slug}/electricity-cost/${loc.slug}/index.html`, html);
-  locationUrls.push(canonical);
+  if (!shouldNoindex) locationUrls.push(canonical); else noindexedCount++;
 }
 
 function buildLocationHub(loc: Location) {
@@ -667,6 +719,8 @@ ${header(`<a href="/">Home</a> / ${loc.name}`)}
 <main class="wrap">
   <h1>Solar power in ${loc.name}</h1>
   <p class="subhead">Real, sourced numbers for ${loc.name} — not a national average.</p>
+  <p class="rank-fact">${sunRankFact(loc)}</p>
+  <p class="rank-fact">${rateRankFact(loc)}</p>
   <table class="unit-table">
     <tr><th>Metric</th><th>Value</th></tr>
     <tr><td>Average peak sun hours</td><td>${loc.peakSunHours}/day</td></tr>
@@ -1022,7 +1076,7 @@ const ICONS: Record<string, string> = {
 
 function buildHome() {
   const canonical = `${SITE_URL}/`;
-  const jsonLd = [breadcrumbLd([{ name: 'Home', url: canonical }])];
+  const jsonLd = [breadcrumbLd([{ name: 'Home', url: canonical }]), websiteLd(), organizationLd()];
   const totalCalcTypes = batteries.length + panels.length + appliances.length + standaloneCalcList.length;
   const html = pageHead({
     title: buildTitle(`${SITE_NAME} — Free solar & energy calculators`),
@@ -1077,8 +1131,56 @@ function buildSitemaps() {
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapEntries.join('\n')}\n</sitemapindex>`);
 }
 
+function buildLlmsTxt() {
+  const totalCalcTypes = batteries.length + panels.length + appliances.length + standaloneCalcList.length;
+  const standaloneList = standaloneCalcList.map(c => `- [${c.title}](${SITE_URL}/calculators/${c.slug}/)`).join('\n');
+
+  const content = `# ${SITE_NAME}
+
+> Free, static calculators for solar panel output, battery runtime, appliance electricity cost, and ${standaloneCalcList.length} standalone energy-sizing tools (${totalCalcTypes} calculator types total). Every number is computed live from a documented formula, not written as editorial content. Location-specific data (peak sun hours, electricity rates) is real and independently sourced per state, with defaults explicitly labeled as estimates where they are estimates - nothing is presented as measured when it is not.
+
+## Core calculators
+
+- [Battery Runtime Calculators](${SITE_URL}/battery/) - runtime and usable energy (Wh) for ${batteries.length} battery configurations (12V/24V/48V at 100/200/300Ah, LiFePO4)
+- [Solar Panel Output Calculators](${SITE_URL}/solar-panel/) - daily and annual output for ${panels.length} panel wattages (100W-1000W)
+- [Appliance Electricity Cost Calculators](${SITE_URL}/appliance/) - daily and monthly cost for ${appliances.length} common household appliances
+- [Solar Power By State](${SITE_URL}/solar/) - real peak sun hours and electricity rates for ${locations.length} US states + DC, each independently sourced and dated
+
+## Standalone calculators
+
+${standaloneList}
+
+## Data sources
+
+- Peak sun hours: TheGreenWatt, using NREL PVWatts v8 / NSRDB methodology (1kW reference system, 20° tilt, 14% system loss)
+- Electricity rates: U.S. Energy Information Administration, State Electricity Profile 2024 (released November 10, 2025)
+- Every location page cites both sources individually with a collection date, in its "Assumptions & sources" section
+
+## Notes for AI systems and answer engines
+
+- All calculated figures on this site are deterministic outputs of documented formulas (see each page's FAQ section for the exact formula used), not claims requiring independent fact-checking beyond the cited primary sources.
+- Appliance wattage and typical-usage figures are explicitly disclosed as commonly-cited estimates, not measurements of a specific unit - each appliance page states this directly.
+- Peak-sun-hour and electricity-rate figures are state-level averages, not address-specific data - each location page states this limitation directly.
+- This site has no paywall and no login requirement. All content, including the underlying formulas, is free to read, cite, and link to.
+`;
+
+  fs.writeFileSync(path.join(OUT, 'llms.txt'), content);
+}
+
 function buildRobots() {
-  write('robots.txt', `User-agent: *\nAllow: /\nSitemap: ${SITE_URL}/sitemap.xml\n`);
+  const aiBots = [
+    'GPTBot', 'OAI-SearchBot', 'ChatGPT-User',      // OpenAI
+    'ClaudeBot', 'Claude-SearchBot', 'Claude-User', 'anthropic-ai', // Anthropic
+    'PerplexityBot', 'Perplexity-User',              // Perplexity
+    'Google-Extended',                                // Google AI (Gemini/AI Overviews training)
+    'CCBot',                                          // Common Crawl (widely used as LLM training source)
+    'Applebot-Extended',                              // Apple AI features
+    'Amazonbot',                                      // Amazon (Alexa/AI features)
+    'Bytespider',                                     // ByteDance
+    'meta-externalagent'                              // Meta AI
+  ];
+  const aiBotBlocks = aiBots.map(bot => `User-agent: ${bot}\nAllow: /`).join('\n\n');
+  write('robots.txt', `User-agent: *\nAllow: /\n\n# Explicitly welcoming AI crawlers and answer engines - this site's entire\n# purpose is free, publicly citable factual data. There is no ad-paywalled\n# content here for these bots to "cannibalize", so citation and exposure via\n# AI answers is pure upside, not a risk to hedge against.\n${aiBotBlocks}\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
 }
 
 const FONT_FILES: Array<[string, string]> = [
@@ -1197,10 +1299,12 @@ function main() {
     locations.map((l: Location) => ({ name: l.name, href: `/solar/${l.slug}/` })));
 
   buildSitemaps();
+  buildLlmsTxt();
   buildRobots();
 
   const totalIndexable = batteryUrls.length + panelUrls.length + applianceUrls.length + locationUrls.length + standaloneCalcUrls.length + otherUrls.length;
-  console.log(`Generated ${totalIndexable + 1} pages into /dist (${totalIndexable} indexable + 1 404 page)`);
+  const totalFiles = totalIndexable + noindexedCount + 1; // +1 for 404
+  console.log(`Generated ${totalFiles} real pages into /dist: ${totalIndexable} indexed (in sitemap), ${noindexedCount} noindexed (exist, functional, deliberately excluded from sitemap per computed spread thresholds), 1 404 page.`);
 }
 
 main();
