@@ -112,6 +112,7 @@ export function pageHead(opts: {
   return `<!doctype html>
 <html lang="en">
 <head>
+<meta name="google-site-verification" content="0i5IG686fkLC2-NT3inQCe_2EIFP1ArthwsJHUWFUGI" />
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="${noindex ? 'noindex, follow' : 'index, follow'}">
