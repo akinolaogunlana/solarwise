@@ -1,10 +1,10 @@
 export const SITE_NAME = 'EnergyStack'; // CHANGE ME before launch
 export const SITE_URL = 'https://energystack.vercel.app'; // CHANGE ME before launch, no trailing slash
-<meta name="google-site-verification" content="0i5IG686fkLC2-NT3inQCe_2EIFP1ArthwsJHUWFUGI"/>
+
 /**
  * Keeps <title> tags from being truncated in search results (~60 char safe zone).
  * Drops the branding suffix on long combinations rather than truncating the actual
- * page subject — same fix that was needed on Convertly's fuel-economy pages.
+ * page subject.
  */
 export function buildTitle(base: string): string {
   if (base.includes(SITE_NAME)) return base; // already has the site name - never append it twice
