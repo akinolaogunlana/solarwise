@@ -124,6 +124,7 @@ export function pageHead(opts: {
 <meta property="og:type" content="website">
 <meta property="og:url" content="${canonical}">
 <meta name="twitter:card" content="summary">
+<meta name="google-site-verification" content="0i5IG686fkLC2-NT3inQCe_2EIFP1ArthwsJHUWFUGI">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/assets/style.css">
 ${jsonLdTags}
